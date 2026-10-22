@@ -1,0 +1,59 @@
+name: Build Lite Binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      ts_version:
+        description: 'Tailscale version'
+        default: '1.76.6'
+      mihomo_version:
+        description: 'Mihomo version'
+        default: 'v1.19.32'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install UPX
+        run: |
+          wget -q https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz
+          tar xf upx-4.2.4-amd64_linux.tar.xz
+          sudo cp upx-4.2.4-amd64_linux/upx /usr/local/bin/
+          upx --version
+
+      - name: Build Tailscale lite
+        run: |
+          TS_VERSION="${{ github.event.inputs.ts_version }}"
+          wget -q "https://pkgs.tailscale.com/stable/tailscale_${TS_VERSION}_arm64.tgz"
+          tar xzf "tailscale_${TS_VERSION}_arm64.tgz"
+          upx --lzma --best -o tailscaled.upx "tailscale_${TS_VERSION}_arm64/tailscaled"
+          gzip -9 -c tailscaled.upx > tailscaled.upx.gz
+          sha256sum tailscaled.upx.gz > tailscaled.upx.gz.sha256
+          ls -la tailscaled.upx.gz
+
+      - name: Build Mihomo lite
+        run: |
+          MIHOMO_VERSION="${{ github.event.inputs.mihomo_version }}"
+          wget -q "https://github.com/MetaCubeX/mihomo/releases/download/${MIHOMO_VERSION}/mihomo-linux-arm64-${MIHOMO_VERSION}.gz"
+          gunzip -c "mihomo-linux-arm64-${MIHOMO_VERSION}.gz" > mihomo_raw
+          chmod +x mihomo_raw
+          upx --lzma --best -o mihomo.upx mihomo_raw
+          gzip -9 -c mihomo.upx > mihomo.upx.gz
+          sha256sum mihomo.upx.gz > mihomo.upx.gz.sha256
+          ls -la mihomo.upx.gz
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: lite-${{ github.run_number }}
+          name: "Lite binaries build #${{ github.run_number }}"
+          files: |
+            tailscaled.upx.gz
+            tailscaled.upx.gz.sha256
+            mihomo.upx.gz
+            mihomo.upx.gz.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
