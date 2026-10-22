@@ -1,5 +1,19 @@
 name: Build Lite Binaries
 
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      ts_version:
+        description: 'Tailscale version'
+        default: '1.76.6'
+      mihomo_version:
+        description: 'Mihomo version'
+        default: 'v1.19.32'
+name: Build Lite Binaries
+
 on:
   workflow_dispatch:
     inputs:
